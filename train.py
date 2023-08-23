@@ -11,7 +11,9 @@ from torch.utils.data import DataLoader, Dataset
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torchvision.models.densenet import densenet201, DenseNet201_Weights
 
-device = 'cuda'
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+assert str(device) == 'cuda', 'CUDA is not available'
+
 pretrained_path = 'densenet201.pth'
 data = None
 eval_every = 15
@@ -20,24 +22,18 @@ num_classes = 6
 epochs = 20
 
 
-def load_model(from_scratch=False):
-    model = None
-    if from_scratch:
-        model = densenet201(weights=DenseNet201_Weights.IMAGENET1K_V1)
-        model = model.to(device)
-        model.classifier = nn.Sequential(
-            nn.Linear(1920, 512),  # Adjust input features based on the model architecture
-            nn.ReLU(),
-            nn.Dropout(0.5),
-            nn.Linear(512, num_classes)  # Output layer with your number of classes
-        )
-    assert model is not None, 'Model is None'
-    for name, param in model.named_parameters():
-        if "classifier" in name:  # Keep the classifier layers trainable
-            param.requires_grad = True
-        else:
-            param.requires_grad = False
-    print('DenseNet-201 Model loaded')
+def load_model(from_scratch=False, model_path=None):
+    model = densenet201(weights=DenseNet201_Weights.IMAGENET1K_V1)
+    model = model.to(device)
+    model.classifier = nn.Sequential(
+        nn.Linear(1920, 512),
+        nn.ReLU(),
+        nn.Dropout(0.5),
+        nn.Linear(512, num_classes)
+    )
+    if not from_scratch:
+        assert model_path is not None, 'Model path is None'
+        model.load_state_dict(torch.load(model_path))
     return model
 
 
@@ -86,7 +82,6 @@ class CustomDataset(Dataset):
 
     def __getitem__(self, idx):
         image_path = self.image_paths[idx]
-        target = self.targets[idx]
         image = cv2.imread(image_path)
         image = cv2.resize(image, (224, 224))
         image = image / 255.0
@@ -95,7 +90,11 @@ class CustomDataset(Dataset):
         if self.transform:
             image_tensor = self.transform(image_tensor)
 
-        return image_tensor, target
+        if self.targets is not None:
+            target = self.targets[idx]
+            return image_tensor, target
+
+        return image_tensor
 
 
 if __name__ == '__main__':
@@ -123,6 +122,15 @@ if __name__ == '__main__':
 
     print("Loading model...")
     model = load_model(from_scratch=True)
+
+    # Only keep the classifier layers trainable
+    for name, param in model.named_parameters():
+        if "classifier" in name:
+            param.requires_grad = True
+        else:
+            param.requires_grad = False
+    print('DenseNet-201 Model loaded')
+
     model = model.to(device)
     model.train()
 
@@ -152,7 +160,7 @@ if __name__ == '__main__':
                 scheduler.step(val_loss)
                 print('Train Epoch: {} [{}/{} ({:.0f}%)]\tTrain loss: {:.6f}\tVal loss: {:.6f}'.format(
                     epoch, batch_idx * len(data), len(train_loader.dataset), 100. * batch_idx / len(train_loader),
-                    total_loss / total_count, val_loss))
+                           total_loss / total_count, val_loss))
                 total_loss = 0
                 total_count = 0
 
