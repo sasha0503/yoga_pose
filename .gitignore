@@ -1,4 +1,5 @@
 .idea/
 data/
 runs/
+__pycache__/
 densenet201.pth
