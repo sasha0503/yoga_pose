@@ -1,18 +1,21 @@
 import os
 import datetime
+import warnings
 
 import cv2
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
-
 from torch import nn
 from torch.utils.data import DataLoader, Dataset
 from torch.optim.lr_scheduler import ReduceLROnPlateau
-from torchvision.models.densenet import densenet201, DenseNet201_Weights
-from torchvision.transforms import transforms
+from torchvision.models import densenet201, DenseNet201_Weights, efficientnet_b6, EfficientNet_B6_Weights
+from sklearn.metrics import f1_score
+from matplotlib import MatplotlibDeprecationWarning
 
 from data_transform import augmentation_transform
+
+warnings.filterwarnings('ignore', category=MatplotlibDeprecationWarning)
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 assert str(device) == 'cuda', 'CUDA is not available'
@@ -24,10 +27,12 @@ eval_every = 15
 batch_size = 32
 num_classes = 6
 epochs = 40
+stop_patience = 10
+no_improvement = 0
 
 
 def load_model(from_scratch=False, model_path=None):
-    model = densenet201(weights=DenseNet201_Weights.IMAGENET1K_V1)
+    model = densenet201(weights=DenseNet201_Weights.DEFAULT)
     model = model.to(device)
     model.classifier = nn.Sequential(
         nn.Linear(1920, 512),
@@ -45,20 +50,26 @@ def test(model, test_loader, criterion=nn.CrossEntropyLoss()):
     model.eval()
     test_loss = 0
     count = 0
+    targets = []
+    outputs = []
     with torch.no_grad():
         for data, target in test_loader:
             data, target = data.to(device), target.to(device)
             output = model(data)
+            targets.extend(target.cpu().numpy())
+            outputs.extend(output.cpu().numpy().argmax(axis=1))
             test_loss += criterion(output, target).item()
             count += 1
 
     test_loss /= count
-    return test_loss
+    f1 = f1_score(targets, outputs, average='macro')
+    return test_loss, f1
 
 
 def plot_train_val(plot_data):
     train_losses = [item[0] for item in plot_data]
     val_losses = [item[1] for item in plot_data]
+    val_f1s = [item[2] for item in plot_data]
 
     # Calculate iterations for x-axis (index * 100)
     iterations = [idx * eval_every * batch_size for idx in range(len(plot_data))]
@@ -67,6 +78,7 @@ def plot_train_val(plot_data):
     plt.figure(figsize=(10, 5))
     plt.plot(iterations, val_losses, marker='o', color='green', label='Validation Loss')
     plt.plot(iterations, train_losses, marker='o', color='blue', label='Train Loss')
+    plt.plot(iterations, val_f1s, marker='o', color='red', label='Validation F1')
     plt.xlabel('Iterations')
     plt.ylabel('Loss')
     plt.title('Training and Validation Loss')
@@ -112,7 +124,7 @@ if __name__ == '__main__':
     images = [os.path.join(data_path, image) for image in csv_data[:, 0]]
     targets = csv_data[:, 1].astype(int)
 
-    train_part = int(len(targets) * 0.8)
+    train_part = int(len(targets) * 0.9)
     train_x, train_y = images[:train_part], targets[:train_part]
     test_x, test_y = images[train_part:], targets[train_part:]
 
@@ -136,7 +148,7 @@ if __name__ == '__main__':
     model.train()
 
     optimizer = torch.optim.Adam(model.parameters(), lr=start_lr)
-    scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=8, verbose=True)
+    scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=12, verbose=True)
     loss_fn = nn.CrossEntropyLoss()
 
     today = datetime.datetime.now().strftime("%m-%d_%H:%M")
@@ -160,17 +172,17 @@ if __name__ == '__main__':
             loss.backward()
             optimizer.step()
             if batch_idx % eval_every == 0:
-                val_loss = test(model, test_loader)
+                val_loss, val_f1 = test(model, test_loader)
                 model.train()
                 scheduler.step(val_loss)
-                print('Train Epoch: {} [{}/{} ({:.0f}%)]\tTrain loss: {:.6f}\tVal loss: {:.6f}'.format(
+                print('Train Epoch: {} [{}/{} ({:.0f}%)]\tTrain loss: {:.6f}\tVal loss: {:.6f}\tVal F1: {:.6f}'.format(
                     epoch, batch_idx * len(data), len(train_loader.dataset), 100. * batch_idx / len(train_loader),
-                           total_loss / total_count, val_loss))
+                           total_loss / total_count, val_loss, val_f1))
                 total_loss = 0
                 total_count = 0
 
                 # save plot
-                plot_data.append((loss.item(), val_loss))
+                plot_data.append((loss.item(), val_loss, val_f1))
                 if len(plot_data) > 1:
                     plt = plot_train_val(plot_data)
                     plot_path = os.path.join(run_folder, 'plot.png')
@@ -183,3 +195,8 @@ if __name__ == '__main__':
                     best_loss = val_loss
                     torch.save(model.state_dict(), os.path.join(run_folder, 'model.pth'))
                     print('Model saved')
+                    no_improvement = 0
+        no_improvement += 1
+        if no_improvement >= stop_patience:
+            print('Early stopping')
+            break
