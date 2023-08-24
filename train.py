@@ -12,6 +12,8 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torchvision.models.densenet import densenet201, DenseNet201_Weights
 from torchvision.transforms import transforms
 
+from data_transform import augmentation_transform
+
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 assert str(device) == 'cuda', 'CUDA is not available'
 
@@ -114,18 +116,9 @@ if __name__ == '__main__':
     train_x, train_y = images[:train_part], targets[:train_part]
     test_x, test_y = images[train_part:], targets[train_part:]
 
-    augmentation_transform = transforms.Compose([
-        transforms.ToPILImage(),
-        transforms.RandomHorizontalFlip(),
-        transforms.RandomRotation(9),
-        transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2),
-        transforms.RandomResizedCrop(size=(224, 224), scale=(0.8, 1.0)),
-        transforms.ToTensor()
-    ])
-
     train_data = CustomDataset(train_x, train_y, transform=augmentation_transform)
     train_loader = DataLoader(train_data, batch_size=batch_size, shuffle=True, num_workers=4)
-    test_data = CustomDataset(test_x, test_y, transform=augmentation_transform)
+    test_data = CustomDataset(test_x, test_y)
     test_loader = DataLoader(test_data, batch_size=batch_size, shuffle=True, num_workers=4)
 
     print("Loading model...")
