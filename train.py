@@ -10,16 +10,18 @@ from torch import nn
 from torch.utils.data import DataLoader, Dataset
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torchvision.models.densenet import densenet201, DenseNet201_Weights
+from torchvision.transforms import transforms
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 assert str(device) == 'cuda', 'CUDA is not available'
 
 pretrained_path = 'densenet201.pth'
 data = None
+start_lr = 0.001
 eval_every = 15
 batch_size = 32
 num_classes = 6
-epochs = 20
+epochs = 40
 
 
 def load_model(from_scratch=False, model_path=None):
@@ -57,7 +59,7 @@ def plot_train_val(plot_data):
     val_losses = [item[1] for item in plot_data]
 
     # Calculate iterations for x-axis (index * 100)
-    iterations = [idx * 100 for idx in range(len(plot_data))]
+    iterations = [idx * eval_every * batch_size for idx in range(len(plot_data))]
 
     # Plotting
     plt.figure(figsize=(10, 5))
@@ -83,6 +85,7 @@ class CustomDataset(Dataset):
     def __getitem__(self, idx):
         image_path = self.image_paths[idx]
         image = cv2.imread(image_path)
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         image = cv2.resize(image, (224, 224))
         image = image / 255.0
         image_tensor = torch.tensor(image.transpose((2, 0, 1)), dtype=torch.float32)
@@ -102,10 +105,6 @@ if __name__ == '__main__':
     data_path = "data/ukraine-ml-bootcamp-2023/images/train_images"
     train_csv = "data/ukraine-ml-bootcamp-2023/train.csv"
 
-    today = datetime.datetime.now().strftime("%m-%d_%H:%M")
-    run_folder = f"runs/train-{today}"
-    os.makedirs(run_folder)
-
     csv_data = np.genfromtxt(train_csv, delimiter=',', skip_header=1, dtype=str)
 
     images = [os.path.join(data_path, image) for image in csv_data[:, 0]]
@@ -115,9 +114,18 @@ if __name__ == '__main__':
     train_x, train_y = images[:train_part], targets[:train_part]
     test_x, test_y = images[train_part:], targets[train_part:]
 
-    train_data = CustomDataset(train_x, train_y)
+    augmentation_transform = transforms.Compose([
+        transforms.ToPILImage(),
+        transforms.RandomHorizontalFlip(),
+        transforms.RandomRotation(9),
+        transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2),
+        transforms.RandomResizedCrop(size=(224, 224), scale=(0.8, 1.0)),
+        transforms.ToTensor()
+    ])
+
+    train_data = CustomDataset(train_x, train_y, transform=augmentation_transform)
     train_loader = DataLoader(train_data, batch_size=batch_size, shuffle=True, num_workers=4)
-    test_data = CustomDataset(test_x, test_y)
+    test_data = CustomDataset(test_x, test_y, transform=augmentation_transform)
     test_loader = DataLoader(test_data, batch_size=batch_size, shuffle=True, num_workers=4)
 
     print("Loading model...")
@@ -134,9 +142,13 @@ if __name__ == '__main__':
     model = model.to(device)
     model.train()
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-    scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=3, verbose=True)
+    optimizer = torch.optim.Adam(model.parameters(), lr=start_lr)
+    scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=8, verbose=True)
     loss_fn = nn.CrossEntropyLoss()
+
+    today = datetime.datetime.now().strftime("%m-%d_%H:%M")
+    run_folder = f"runs/train-{today}"
+    os.makedirs(run_folder)
 
     # Train
     print("Training...")

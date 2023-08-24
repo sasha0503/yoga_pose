@@ -2,14 +2,13 @@ import os
 
 import torch
 from torch.utils.data import DataLoader
-from torchvision.models.densenet import densenet201
 
 from train import CustomDataset, load_model
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 assert str(device) == 'cuda', 'CUDA is not available'
 
-MODEL_PATH = 'runs/train-08-23_19:48/model.pth'
+MODEL_PATH = 'runs/train-08-23_21:49/model.pth'
 model = load_model(from_scratch=False, model_path=MODEL_PATH)
 model = model.to(device)
 model.eval()

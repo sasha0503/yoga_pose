@@ -35,7 +35,7 @@ plt.savefig(plot_path)
 # create examples for each class
 os.makedirs(os.path.join(data_path, 'examples'), exist_ok=True)
 for class_id in unique_class_ids:
-    class_examples = np.random.choice(train_data[train_data[:, 1] == class_id][:, 0], size=9, replace=False)
+    class_examples = train_data[train_data[:, 1] == class_id][:, 0]
     os.makedirs(os.path.join(data_path, 'examples', class_id), exist_ok=True)
     for example in class_examples:
         shutil.copy(os.path.join(data_path, 'images/train_images', example),
