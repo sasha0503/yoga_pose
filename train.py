@@ -31,15 +31,35 @@ stop_patience = 10
 no_improvement = 0
 
 
+class CustomClassifier(nn.Module):
+    def __init__(self, in_features, num_classes, hidden_dim=512, dropout_rate=0.5):
+        super(CustomClassifier, self).__init__()
+
+        self.fc = nn.Linear(in_features, num_classes)
+
+        # self.fc1 = nn.Linear(in_features, hidden_dim)
+        # self.bn1 = nn.BatchNorm1d(hidden_dim)
+        # self.relu1 = nn.ReLU()
+        # self.dropout = nn.Dropout(dropout_rate)
+        #
+        # self.fc2 = nn.Linear(hidden_dim, num_classes)
+
+    def forward(self, x):
+        x = self.fc(x)
+        # x = self.fc1(x)
+        # x = self.bn1(x)
+        # x = self.relu1(x)
+        # x = self.dropout(x)
+        #
+        # x = self.fc2(x)
+
+        return x
+
+
 def load_model(from_scratch=False, model_path=None):
     model = densenet201(weights=DenseNet201_Weights.DEFAULT)
     model = model.to(device)
-    model.classifier = nn.Sequential(
-        nn.Linear(1920, 512),
-        nn.ReLU(),
-        nn.Dropout(0.5),
-        nn.Linear(512, num_classes)
-    )
+    model.classifier = CustomClassifier(model.classifier.in_features, num_classes)
     if not from_scratch:
         assert model_path is not None, 'Model path is None'
         model.load_state_dict(torch.load(model_path))
@@ -124,6 +144,13 @@ if __name__ == '__main__':
     images = [os.path.join(data_path, image) for image in csv_data[:, 0]]
     targets = csv_data[:, 1].astype(int)
 
+    # Shuffle data
+    indecies = np.arange(len(targets))
+    np.random.shuffle(indecies)
+    images = [images[i] for i in indecies]
+    targets = targets[indecies]
+
+
     train_part = int(len(targets) * 0.9)
     train_x, train_y = images[:train_part], targets[:train_part]
     test_x, test_y = images[train_part:], targets[train_part:]
@@ -161,6 +188,15 @@ if __name__ == '__main__':
     plot_data = []
     total_loss = 0
     total_count = 0
+
+    description = f"lr={start_lr}, batch_size={batch_size}, epochs={epochs}, stop_patience={stop_patience}\n" \
+                  f"classification layer: {model.classifier}\n" \
+                  f"scheduler: patience {scheduler.patience} factor {scheduler.factor}\n" \
+                  f"NOTE: try only one FC layer\n"
+
+    with open(os.path.join(run_folder, 'description.txt'), 'w') as f:
+        f.write(description)
+
     for epoch in range(1, epochs + 1):
         for batch_idx, (data, target) in enumerate(train_loader):
             data, target = data.to(device), target.to(device)
