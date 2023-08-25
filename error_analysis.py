@@ -17,7 +17,7 @@ ground_truth = train_data[:, 1]
 res = []
 for i, model_path in enumerate(MODEL_PATHS):
     res.append(get_res(model_path, img_paths))
-    print(f'Predictions {i} done')
+    print(f'Error predictions {i} done')
 final_res = torch.stack(res).mean(dim=0)
 final_res = [r.argmax().item() for r in final_res]
 final_res = [reversed_groups[r] for r in final_res]
@@ -26,5 +26,5 @@ error_path = os.path.join(os.path.dirname(submission_name), os.path.basename(sub
 os.makedirs(error_path, exist_ok=True)
 wrong_preds = []
 for i, (pred, gt) in enumerate(zip(final_res, ground_truth)):
-    if pred != gt:
+    if int(pred) != int(gt):
         shutil.copy(img_paths[i], os.path.join(error_path, f'{i}_{gt}_{pred}.jpg'))
