@@ -3,6 +3,7 @@ import datetime
 import sys
 import warnings
 import logging
+import pickle
 
 import torch
 import numpy as np
@@ -64,13 +65,17 @@ class CustomClassifier(nn.Module):
         return x
 
 
-def load_model(from_scratch=False, model_path=None):
+def load_model(from_scratch=False, weights_path=None, pickle_path=None):
+    if pickle_path is not None:
+        with open(pickle_path, 'rb') as f:
+            model = pickle.load(f)
+        return model
     model = densenet201(weights=DenseNet201_Weights.DEFAULT)
     model.classifier = CustomClassifier(model.classifier.in_features, num_classes)
     model = model.to(device)
     if not from_scratch:
-        assert model_path is not None, 'Model path is None'
-        state_dict = torch.load(model_path)
+        assert weights_path is not None, 'Weights path is None'
+        state_dict = torch.load(weights_path)
 
         # change fc to fc1 in state dict because I was inconsistent with the names of the layers
         if 'classifier.fc.weight' in state_dict:
@@ -169,7 +174,7 @@ if __name__ == '__main__':
     model.train()
 
     optimizer = torch.optim.Adam(model.parameters(), lr=start_lr)
-    scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=10, verbose=True)
+    scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=10, verbose=True, min_lr=1e-6)
     loss_fn = nn.CrossEntropyLoss()
 
     today = datetime.datetime.now().strftime("%m-%d_%H:%M")
@@ -252,7 +257,8 @@ if __name__ == '__main__':
                 # save model
                 if val_loss < best_loss:
                     best_loss = val_loss
-                    torch.save(model.state_dict(), os.path.join(run_folder, 'model.pth'))
+                    with open(os.path.join(run_folder, 'model.pkl'), 'wb') as f:
+                        pickle.dump(model, f)
                     logging.info('Model saved')
                     print('Model saved')
                     no_improvement = 0

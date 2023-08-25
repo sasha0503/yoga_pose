@@ -4,15 +4,23 @@ import torch
 from torch.utils.data import DataLoader
 
 from data_transform import base_transform
-from train import CustomDataset, load_model, reversed_groups
+from train import CustomDataset, load_model, reversed_groups, CustomClassifier
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 assert str(device) == 'cuda', 'CUDA is not available'
 
 
 def get_res(model_path, images):
-    model_path = os.path.join('runs', model_path, 'model.pth')
-    model = load_model(from_scratch=False, model_path=model_path)
+    weights_path = os.path.join('runs', model_path, 'model.pth')
+    pickle_path = os.path.join('runs', model_path, 'model.pkl')
+    if os.path.exists(pickle_path):
+        model = load_model(pickle_path=pickle_path)
+        print('Model loaded from pickle')
+    elif os.path.exists(weights_path):
+        model = load_model(from_scratch=False, weights_path=weights_path)
+        print('Model loaded from weights')
+    else:
+        raise ValueError(f'No model found at {weights_path} or {pickle_path}')
     model = model.to(device)
     model.eval()
     test_data = CustomDataset(images, targets=None, transform=base_transform)

@@ -6,7 +6,7 @@ import shutil
 import torch
 import numpy as np
 
-from train import reversed_groups
+from train import reversed_groups, CustomClassifier
 from create_submission import get_res, MODEL_PATHS, submission_name
 
 train_csv = "data/ukraine-ml-bootcamp-2023/train.csv"
