@@ -29,7 +29,7 @@ num_classes = len(dataset.classes)
 
 reversed_groups = {}
 for i, classname in enumerate(dataset.classes):
-    reversed_groups[i] = classname.split('_')[0]
+    reversed_groups[i] = int(classname.split('_')[0])
 reversed_groups_values = np.array(list(reversed_groups.values()))
 
 small_num_classes = len(set(reversed_groups.values()))
