@@ -30,6 +30,8 @@ num_classes = len(dataset.classes)
 reversed_groups = {}
 for i, classname in enumerate(dataset.classes):
     reversed_groups[i] = classname.split('_')[0]
+reversed_groups_values = np.array(list(reversed_groups.values()))
+
 small_num_classes = len(set(reversed_groups.values()))
 
 data = None
@@ -82,10 +84,8 @@ def test(model, test_loader, criterion=nn.CrossEntropyLoss()):
         for data, target in test_loader:
             data, target = data.to(device), target.to(device)
             output = model(data)
-            for i in range(len(target)):
-                small_targets.append(int(reversed_groups[target[i].item()]))
-            for i in range(len(output)):
-                small_outputs.append(int(reversed_groups[output.argmax(1)[i].item()]))
+            small_targets.extend(reversed_groups_values[target.cpu()])
+            small_outputs.extend(reversed_groups_values[output.argmax(1).cpu()])
             test_loss += criterion(output, target)
             count += 1
 
@@ -95,9 +95,10 @@ def test(model, test_loader, criterion=nn.CrossEntropyLoss()):
 
 
 def plot_train_val(plot_data):
-    train_losses = [item[0] for item in plot_data]
-    val_losses = [item[1] for item in plot_data]
-    val_f1s = [item[2] for item in plot_data]
+    plot_data_array = np.array(plot_data)
+    train_losses = plot_data_array[:, 0]
+    val_losses = plot_data_array[:, 1]
+    val_f1s = plot_data_array[:, 2]
 
     # Calculate iterations for x-axis (index * 100)
     iterations = [idx * eval_every * batch_size for idx in range(len(plot_data))]
