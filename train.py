@@ -25,6 +25,7 @@ assert str(device) == 'cuda', 'CUDA is not available'
 
 data_path = "data/ukraine-ml-bootcamp-2023/subcat"
 USE_SMALL_CLASSES = True
+SMALL_CLASS_MAX = True
 
 dataset = ImageFolder(data_path, transform=base_transform)
 num_classes = len(dataset.classes)
@@ -35,6 +36,11 @@ for i, classname in enumerate(dataset.classes):
 reversed_groups_values = np.array(list(reversed_groups.values()))
 
 small_num_classes = len(set(reversed_groups.values()))
+
+indexes = []
+for i in range(small_num_classes):
+    indexes.append(np.where(reversed_groups_values == i)[0][0])
+indexes.append(small_num_classes)
 
 data = None
 start_lr = 0.0001
@@ -48,20 +54,12 @@ no_improvement = 0
 class CustomClassifier(nn.Module):
     def __init__(self, in_features, num_classes, hidden_dim=128, dropout_rate=0.5):
         super(CustomClassifier, self).__init__()
-        self.fc1 = nn.Linear(in_features, hidden_dim)
-        self.bn1 = nn.BatchNorm1d(hidden_dim)
-        self.relu1 = nn.ReLU()
         self.dropout = nn.Dropout(dropout_rate)
-
-        self.fc2 = nn.Linear(hidden_dim, num_classes)
+        self.fc1 = nn.Linear(in_features, num_classes)
 
     def forward(self, x):
+        self.dropout(x)
         x = self.fc1(x)
-        x = self.bn1(x)
-        x = self.relu1(x)
-        x = self.dropout(x)
-
-        x = self.fc2(x)
 
         return x
 
@@ -72,7 +70,15 @@ def load_model(from_scratch=False, model_path=None):
     model = model.to(device)
     if not from_scratch:
         assert model_path is not None, 'Model path is None'
-        model.load_state_dict(torch.load(model_path))
+        state_dict = torch.load(model_path)
+
+        # change fc to fc1 in state dict because I was inconsistent with the names of the layers
+        if 'classifier.fc.weight' in state_dict:
+            state_dict['classifier.fc1.weight'] = state_dict['classifier.fc.weight']
+            state_dict['classifier.fc1.bias'] = state_dict['classifier.fc.bias']
+            del state_dict['classifier.fc.weight']
+            del state_dict['classifier.fc.bias']
+        model.load_state_dict(state_dict)
     return model
 
 
@@ -203,11 +209,19 @@ if __name__ == '__main__':
             if USE_SMALL_CLASSES:
                 small_target = reversed_groups_values[target.cpu()]
                 small_target = torch.from_numpy(small_target).to(device).float()
-                small_output = reversed_groups_values[output.argmax(1).cpu()]
-                small_output = torch.from_numpy(small_output).to(device).float()
-                small_output.requires_grad = True
-
-                loss = 0.9 * loss_fn(output, target) + 0.15 * loss_fn(small_output, small_target)
+                if SMALL_CLASS_MAX:
+                    small_output = reversed_groups_values[output.argmax(1).cpu()]
+                    small_output = torch.from_numpy(small_output).to(device).float()
+                    small_output.requires_grad = True
+                    loss = 0.8 * loss_fn(output, target) + 0.01 * loss_fn(small_output, small_target)
+                else:
+                    output_summed = torch.zeros(len(indexes) - 1, output.shape[0]).to(device)
+                    for i in range(len(indexes) - 1):
+                        start_idx = indexes[i]
+                        end_idx = indexes[i + 1]
+                        output_summed[i] = output[:, start_idx:end_idx].sum(dim=1)
+                    output_summed = output_summed.transpose(1, 0)
+                    loss = 0.8 * loss_fn(output, target) + 0.2 * loss_fn(output_summed, small_target)
             else:
                 loss = loss_fn(output, target)
             total_loss += loss.item()
