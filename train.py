@@ -4,7 +4,6 @@ import sys
 import warnings
 import logging
 
-import cv2
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
@@ -24,24 +23,19 @@ warnings.filterwarnings('ignore', category=MatplotlibDeprecationWarning)
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 assert str(device) == 'cuda', 'CUDA is not available'
 
+data_path = "data/ukraine-ml-bootcamp-2023/subcat"
+dataset = ImageFolder(data_path, transform=base_transform)
+num_classes = len(dataset.classes)
+
+reversed_groups = {}
+for i, classname in enumerate(dataset.classes):
+    reversed_groups[i] = classname.split('_')[0]
+small_num_classes = len(set(reversed_groups.values()))
+
 data = None
 start_lr = 0.0001
 eval_every = 15
 batch_size = 16
-small_num_classes = 6
-num_classes = 41
-groups = {
-    '0': [0, 1, 2, 3, 4, 5, 6, 7],
-    '1': [8, 9, 10, 11, 12, 13, 14, 15, 16],
-    '2': [17, 18, 19, 20],
-    '3': [21, 22, 23, 24, 25],
-    '4': [26, 27, 28, 29, 30, 31, 32, 33],
-    '5': [34, 35, 36, 37, 38, 39, 40]
-}
-reversed_groups = {}
-for key, value in groups.items():
-    for v in value:
-        reversed_groups[v] = key
 epochs = 40
 stop_patience = 10
 no_improvement = 0
@@ -147,8 +141,6 @@ class CustomDataset(Dataset):
 if __name__ == '__main__':
     print("Loading data...")
 
-    data_path = "data/ukraine-ml-bootcamp-2023/subcat"
-    dataset = ImageFolder(data_path, transform=base_transform)
     train_size = int(0.9 * len(dataset))
     val_size = len(dataset) - train_size
     train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
