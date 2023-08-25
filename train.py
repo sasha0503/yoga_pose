@@ -25,9 +25,9 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 assert str(device) == 'cuda', 'CUDA is not available'
 
 data = None
-start_lr = 0.001
+start_lr = 0.0001
 eval_every = 15
-batch_size = 32
+batch_size = 16
 small_num_classes = 6
 num_classes = 41
 groups = {
@@ -153,18 +153,15 @@ if __name__ == '__main__':
     val_size = len(dataset) - train_size
     train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
     train_dataset.dataset.transform = augmentation_transform
-    train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True, num_workers=4)
-    test_loader = DataLoader(val_dataset, batch_size=32, shuffle=False, num_workers=4)
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=4)
+    test_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=4)
 
     print("Loading model...")
     model = load_model(from_scratch=True)
 
     # Only keep the classifier layers trainable
     for name, param in model.named_parameters():
-        if "classifier" in name:
-            param.requires_grad = True
-        else:
-            param.requires_grad = False
+        param.requires_grad = True
     print('Model loaded')
 
     model = model.to(device)
@@ -189,7 +186,7 @@ if __name__ == '__main__':
                   f"classification layer: {model.classifier}\n" \
                   f"scheduler: patience {scheduler.patience} factor {scheduler.factor}\n" \
                   f"model: densenet-201" \
-                  f"NOTE: back to good ol` densenet and also new data transform\n"
+                  f"NOTE: unfreeze all layres\n"
 
     log_filename = os.path.join(run_folder, 'log.txt')
     logging.basicConfig(filename=log_filename, level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
