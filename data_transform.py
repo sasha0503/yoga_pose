@@ -1,13 +1,17 @@
 import os
 import shutil
 
-import cv2
 import numpy as np
-import torch
+from PIL import Image
 from torchvision import transforms
 
+base_transform = transforms.Compose([
+    transforms.Resize((224, 224)),
+    transforms.ToTensor(),
+])
+
 augmentation_transform = transforms.Compose([
-    transforms.ToPILImage(),
+    transforms.Resize((224, 224)),
     transforms.RandomHorizontalFlip(),
     transforms.RandomCrop(224),
     transforms.RandomRotation(9),
@@ -31,12 +35,8 @@ if __name__ == '__main__':
     images = [os.path.join(data_path, image) for image in csv_data[:, 0]]
     random_images = np.random.choice(images, 10)
     for i, image_path in enumerate(random_images):
-        image = cv2.imread(image_path)
-        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        image = cv2.resize(image, (224, 224))
-        image = image / 255.0
-        image_tensor = torch.tensor(image.transpose((2, 0, 1)), dtype=torch.float32)
-        image_tensor = augmentation_transform(image_tensor)
+        image = Image.open(image_path).convert("RGB")
+        image_tensor = augmentation_transform(image)
         pil_image = transforms.ToPILImage()(image_tensor)
         pil_image.save(os.path.join(augment_path, f"{i}_aug.jpg"))
         shutil.copy(image_path, os.path.join(augment_path, f"{i}_orig.jpg"))
