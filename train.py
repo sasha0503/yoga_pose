@@ -24,6 +24,8 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 assert str(device) == 'cuda', 'CUDA is not available'
 
 data_path = "data/ukraine-ml-bootcamp-2023/subcat"
+USE_SMALL_CLASSES = True
+
 dataset = ImageFolder(data_path, transform=base_transform)
 num_classes = len(dataset.classes)
 
@@ -179,7 +181,7 @@ if __name__ == '__main__':
                   f"classification layer: {model.classifier}\n" \
                   f"scheduler: patience {scheduler.patience} factor {scheduler.factor}\n" \
                   f"model: densenet-201" \
-                  f"NOTE: unfreeze all layres\n"
+                  f"NOTE: use small clases\n"
 
     log_filename = os.path.join(run_folder, 'log.txt')
     logging.basicConfig(filename=log_filename, level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -197,7 +199,17 @@ if __name__ == '__main__':
             data, target = data.to(device), target.to(device)
             optimizer.zero_grad()
             output = model(data)
-            loss = loss_fn(output, target)
+
+            if USE_SMALL_CLASSES:
+                small_target = reversed_groups_values[target.cpu()]
+                small_target = torch.from_numpy(small_target).to(device).float()
+                small_output = reversed_groups_values[output.argmax(1).cpu()]
+                small_output = torch.from_numpy(small_output).to(device).float()
+                small_output.requires_grad = True
+
+                loss = 0.9 * loss_fn(output, target) + 0.15 * loss_fn(small_output, small_target)
+            else:
+                loss = loss_fn(output, target)
             total_loss += loss.item()
             total_count += 1
             loss.backward()
