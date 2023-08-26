@@ -210,6 +210,8 @@ if __name__ == '__main__':
             data, target = data.to(device), target.to(device)
             optimizer.zero_grad()
             output = model(data)
+            with torch.no_grad():
+                train_loss = loss_fn(output, target)
 
             if USE_SMALL_CLASSES:
                 small_target = reversed_groups_values[target.cpu()]
@@ -217,19 +219,18 @@ if __name__ == '__main__':
                 if SMALL_CLASS_MAX:
                     small_output = reversed_groups_values[output.argmax(1).cpu()]
                     small_output = torch.from_numpy(small_output).to(device).float()
-                    small_output.requires_grad = True
-                    loss = 0.8 * loss_fn(output, target) + 0.01 * loss_fn(small_output, small_target)
                 else:
-                    output_summed = torch.zeros(len(indexes) - 1, output.shape[0]).to(device)
+                    small_output = torch.zeros(len(indexes) - 1, output.shape[0]).to(device)
                     for i in range(len(indexes) - 1):
                         start_idx = indexes[i]
                         end_idx = indexes[i + 1]
-                        output_summed[i] = output[:, start_idx:end_idx].sum(dim=1)
-                    output_summed = output_summed.transpose(1, 0)
-                    loss = 0.8 * loss_fn(output, target) + 0.2 * loss_fn(output_summed, small_target)
+                        small_output[i] = output[:, start_idx:end_idx].sum(dim=1)
+                    small_output = small_output.transpose(1, 0)
+                small_output.requires_grad = True
+                loss = loss_fn(output, target) + loss_fn(small_output, small_target)
             else:
                 loss = loss_fn(output, target)
-            total_loss += loss.item()
+            total_loss += train_loss.item()
             total_count += 1
             loss.backward()
             optimizer.step()
@@ -246,7 +247,7 @@ if __name__ == '__main__':
                 total_count = 0
 
                 # save plot
-                plot_data.append((loss.item(), val_loss.item(), val_f1))
+                plot_data.append((train_loss.item(), val_loss.item(), val_f1))
                 if len(plot_data) > 1:
                     plt = plot_train_val(plot_data)
                     plot_path = os.path.join(run_folder, 'plot.png')
