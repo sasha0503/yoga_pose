@@ -59,7 +59,7 @@ class CustomClassifier(nn.Module):
         self.fc1 = nn.Linear(in_features, num_classes)
 
     def forward(self, x):
-        self.dropout(x)
+        x = self.dropout(x)
         x = self.fc1(x)
 
         return x
