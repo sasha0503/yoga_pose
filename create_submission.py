@@ -3,7 +3,7 @@ import os
 import torch
 from torch.utils.data import DataLoader
 
-from data_transform import base_transform, base_transform_no_norm
+from data_transform import base_transform, base_transform_no_norm, augmentation_transform
 from train import CustomDataset, load_model, reversed_groups, CustomClassifier
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -13,6 +13,7 @@ assert str(device) == 'cuda', 'CUDA is not available'
 def get_res(model_path, test_data: CustomDataset):
     weights_path = os.path.join('runs', model_path, 'model.pth')
     pickle_path = os.path.join('runs', model_path, 'model.pkl')
+    assert os.path.exists(pickle_path), 'No model found'
     if os.path.exists(pickle_path):
         model = load_model(pickle_path=pickle_path)
         print('Model loaded from pickle')
@@ -32,20 +33,19 @@ def get_res(model_path, test_data: CustomDataset):
             outputs = model(batch)
             local_res.extend(outputs)
 
-    assert len(local_res) == len(images), 'Wrong predictions length'
     tensor_res = torch.cat(local_res)
-    tensor_res = tensor_res.view(len(images), -1)
+    tensor_res = tensor_res.view(len(test_data), -1)
     return tensor_res
 
 
 MODEL_PATHS = [
-    'train-08-26_12:26_no_small_output',
-    'train-08-26_12:45_no_norm'
+    'train-08-26_14:43_new_59_classes',
+    'train-08-26_15:14_bigger_classifier'
 ]
 
 DATA_TRANSFORMS = [
     base_transform,
-    base_transform_no_norm
+    base_transform,
 ]
 
 assert len(MODEL_PATHS) == len(DATA_TRANSFORMS), 'Wrong paths length'

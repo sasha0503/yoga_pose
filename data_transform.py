@@ -24,6 +24,8 @@ augmentation_transform = transforms.Compose([
     transforms.RandomPerspective(distortion_scale=0.25, p=0.5, interpolation=3),
     transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.05),
     transforms.RandomResizedCrop(size=(224, 224), scale=(0.8, 1.0)),
+    transforms.RandomAdjustSharpness(sharpness_factor=0.5, p=0.2),
+    transforms.RandomAutocontrast(p=0.4),
     transforms.RandomGrayscale(p=0.1),
     transforms.ToTensor(),
     transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
@@ -37,6 +39,8 @@ augmentation_transform_no_norm = transforms.Compose([
     transforms.RandomPerspective(distortion_scale=0.25, p=0.5, interpolation=3),
     transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.05),
     transforms.RandomResizedCrop(size=(224, 224), scale=(0.8, 1.0)),
+    transforms.RandomAdjustSharpness(sharpness_factor=0.5, p=0.2),
+    transforms.RandomAutocontrast(p=0.4),
     transforms.RandomGrayscale(p=0.1),
     transforms.ToTensor(),
 ])
@@ -55,7 +59,7 @@ if __name__ == '__main__':
     random_images = np.random.choice(images, 10)
     for i, image_path in enumerate(random_images):
         image = Image.open(image_path).convert("RGB")
-        image_tensor = augmentation_transform(image)
+        image_tensor = augmentation_transform_no_norm(image)
         pil_image = transforms.ToPILImage()(image_tensor)
         pil_image.save(os.path.join(augment_path, f"{i}_aug.jpg"))
         shutil.copy(image_path, os.path.join(augment_path, f"{i}_orig.jpg"))

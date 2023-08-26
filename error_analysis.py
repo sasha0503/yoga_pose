@@ -6,8 +6,8 @@ import shutil
 import torch
 import numpy as np
 
-from train import reversed_groups, CustomClassifier
-from create_submission import get_res, MODEL_PATHS, submission_name
+from train import reversed_groups, CustomClassifier, CustomDataset
+from create_submission import get_res, MODEL_PATHS, submission_name, DATA_TRANSFORMS
 
 train_csv = "data/ukraine-ml-bootcamp-2023/train.csv"
 train_data = np.genfromtxt(train_csv, delimiter=',', skip_header=1, dtype=str)
@@ -15,8 +15,9 @@ img_paths = [os.path.join('data/ukraine-ml-bootcamp-2023/images/train_images', i
 ground_truth = train_data[:, 1]
 
 res = []
-for i, model_path in enumerate(MODEL_PATHS):
-    res.append(get_res(model_path, img_paths))
+for i, (model_path, data_transform) in enumerate(zip(MODEL_PATHS, DATA_TRANSFORMS)):
+    test_data = CustomDataset(img_paths, targets=None, transform=data_transform)
+    res.append(get_res(model_path, test_data))
     print(f'Error predictions {i} done')
 final_res = torch.stack(res).mean(dim=0)
 final_res = [r.argmax().item() for r in final_res]

@@ -17,7 +17,8 @@ from torchvision.models import densenet201, DenseNet201_Weights
 from sklearn.metrics import f1_score
 from matplotlib import MatplotlibDeprecationWarning
 
-from data_transform import augmentation_transform, base_transform, augmentation_transform_no_norm, base_transform_no_norm
+from data_transform import augmentation_transform, base_transform, \
+    augmentation_transform_no_norm, base_transform_no_norm
 
 warnings.filterwarnings('ignore', category=MatplotlibDeprecationWarning)
 
@@ -45,11 +46,11 @@ for i in range(small_num_classes):
 indexes.append(small_num_classes)
 
 data = None
-start_lr = 0.0001
+start_lr = 0.0004
 eval_every = 15
 batch_size = 16
 epochs = 40
-stop_patience = 10
+stop_patience = 8
 no_improvement = 0
 
 
@@ -57,11 +58,18 @@ class CustomClassifier(nn.Module):
     def __init__(self, in_features, num_classes, hidden_dim=128, dropout_rate=0.5):
         super(CustomClassifier, self).__init__()
         self.dropout = nn.Dropout(dropout_rate)
-        self.fc1 = nn.Linear(in_features, num_classes)
+        self.fc1 = nn.Linear(in_features, hidden_dim)
+        self.batchnorm = nn.BatchNorm1d(hidden_dim)
+        self.relu = nn.ReLU()
+        self.fc2 = nn.Linear(hidden_dim, num_classes)
 
     def forward(self, x):
         x = self.dropout(x)
         x = self.fc1(x)
+        if hasattr(self, 'batchnorm'):
+            x = self.batchnorm(x)
+            x = self.relu(x)
+            x = self.fc2(x)
 
         return x
 
@@ -174,8 +182,8 @@ if __name__ == '__main__':
     model = model.to(device)
     model.train()
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=start_lr)
-    scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=10, verbose=True, min_lr=1e-6)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=start_lr)
+    scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=10, verbose=True)
     loss_fn = nn.CrossEntropyLoss()
 
     today = datetime.datetime.now().strftime("%m-%d_%H:%M")
@@ -193,7 +201,7 @@ if __name__ == '__main__':
                   f"classification layer: {model.classifier}\n" \
                   f"scheduler: patience {scheduler.patience} factor {scheduler.factor}\n" \
                   f"model: densenet-201\n" \
-                  f"NOTE: don't use small classes in train\n"
+                  f"NOTE: try AdamW\n"
 
     log_filename = os.path.join(run_folder, 'log.txt')
     logging.basicConfig(filename=log_filename, level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
