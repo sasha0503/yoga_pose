@@ -11,6 +11,11 @@ base_transform = transforms.Compose([
     transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
 ])
 
+base_transform_no_norm = transforms.Compose([
+    transforms.Resize((224, 224)),
+    transforms.ToTensor(),
+])
+
 augmentation_transform = transforms.Compose([
     transforms.Resize((224, 224)),
     transforms.RandomHorizontalFlip(),
@@ -22,6 +27,18 @@ augmentation_transform = transforms.Compose([
     transforms.RandomGrayscale(p=0.1),
     transforms.ToTensor(),
     transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+])
+
+augmentation_transform_no_norm = transforms.Compose([
+    transforms.Resize((224, 224)),
+    transforms.RandomHorizontalFlip(),
+    transforms.RandomCrop(224),
+    transforms.RandomRotation(9),
+    transforms.RandomPerspective(distortion_scale=0.25, p=0.5, interpolation=3),
+    transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.05),
+    transforms.RandomResizedCrop(size=(224, 224), scale=(0.8, 1.0)),
+    transforms.RandomGrayscale(p=0.1),
+    transforms.ToTensor(),
 ])
 
 if __name__ == '__main__':

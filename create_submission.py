@@ -3,14 +3,14 @@ import os
 import torch
 from torch.utils.data import DataLoader
 
-from data_transform import base_transform
+from data_transform import base_transform, base_transform_no_norm
 from train import CustomDataset, load_model, reversed_groups, CustomClassifier
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 assert str(device) == 'cuda', 'CUDA is not available'
 
 
-def get_res(model_path, images):
+def get_res(model_path, test_data: CustomDataset):
     weights_path = os.path.join('runs', model_path, 'model.pth')
     pickle_path = os.path.join('runs', model_path, 'model.pkl')
     if os.path.exists(pickle_path):
@@ -23,7 +23,6 @@ def get_res(model_path, images):
         raise ValueError(f'No model found at {weights_path} or {pickle_path}')
     model = model.to(device)
     model.eval()
-    test_data = CustomDataset(images, targets=None, transform=base_transform)
     data_loader = DataLoader(test_data, batch_size=32, shuffle=False, num_workers=4)
 
     local_res = []
@@ -40,9 +39,17 @@ def get_res(model_path, images):
 
 
 MODEL_PATHS = [
-    'train-08-25_17:35-WIN',
-    'train-08-25_17:53',
+    'train-08-26_12:26_no_small_output',
+    'train-08-26_12:45_no_norm'
 ]
+
+DATA_TRANSFORMS = [
+    base_transform,
+    base_transform_no_norm
+]
+
+assert len(MODEL_PATHS) == len(DATA_TRANSFORMS), 'Wrong paths length'
+
 res = []
 
 submission_name = "submissions/" + '~'.join(MODEL_PATHS) + '~~submission.csv'
@@ -52,8 +59,9 @@ if __name__ == '__main__':
     images = [os.path.join(test_data_path, i) for i in os.listdir(test_data_path)]
 
     print('Test size:', len(images))
-    for i, model_path in enumerate(MODEL_PATHS):
-        res.append(get_res(model_path, images))
+    for i, (model_path, data_transform) in enumerate(zip(MODEL_PATHS, DATA_TRANSFORMS)):
+        test_data = CustomDataset(images, targets=None, transform=data_transform)
+        res.append(get_res(model_path, test_data))
         print(f'Predictions {i} done')
 
     final_res = torch.stack(res).mean(dim=0)

@@ -17,7 +17,7 @@ from torchvision.models import densenet201, DenseNet201_Weights
 from sklearn.metrics import f1_score
 from matplotlib import MatplotlibDeprecationWarning
 
-from data_transform import augmentation_transform, base_transform
+from data_transform import augmentation_transform, base_transform, augmentation_transform_no_norm, base_transform_no_norm
 
 warnings.filterwarnings('ignore', category=MatplotlibDeprecationWarning)
 
@@ -25,8 +25,8 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 assert str(device) == 'cuda', 'CUDA is not available'
 
 data_path = "data/ukraine-ml-bootcamp-2023/subcat"
-USE_SMALL_CLASSES = True
-SMALL_CLASS_MAX = True
+USE_SMALL_CLASSES = False
+SMALL_CLASS_MAX = False
 
 dataset = ImageFolder(data_path, transform=base_transform)
 num_classes = len(dataset.classes)
@@ -192,8 +192,8 @@ if __name__ == '__main__':
     description = f"lr={start_lr}, batch_size={batch_size}, epochs={epochs}, stop_patience={stop_patience}\n" \
                   f"classification layer: {model.classifier}\n" \
                   f"scheduler: patience {scheduler.patience} factor {scheduler.factor}\n" \
-                  f"model: densenet-201" \
-                  f"NOTE: added more classes\n"
+                  f"model: densenet-201\n" \
+                  f"NOTE: don't use small classes in train\n"
 
     log_filename = os.path.join(run_folder, 'log.txt')
     logging.basicConfig(filename=log_filename, level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
