@@ -37,6 +37,7 @@ for i, classname in enumerate(dataset.classes):
 reversed_groups_values = np.array(list(reversed_groups.values()))
 
 small_num_classes = len(set(reversed_groups.values()))
+print(f'Small num classes: {small_num_classes}\n Num classes: {num_classes}')
 
 indexes = []
 for i in range(small_num_classes):
@@ -183,7 +184,7 @@ if __name__ == '__main__':
 
     # Train
     print("Training...")
-    best_loss = np.inf
+    best_f1 = 0
     plot_data = []
     total_loss = 0
     total_count = 0
@@ -192,7 +193,7 @@ if __name__ == '__main__':
                   f"classification layer: {model.classifier}\n" \
                   f"scheduler: patience {scheduler.patience} factor {scheduler.factor}\n" \
                   f"model: densenet-201" \
-                  f"NOTE: use small clases\n"
+                  f"NOTE: added more classes\n"
 
     log_filename = os.path.join(run_folder, 'log.txt')
     logging.basicConfig(filename=log_filename, level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -256,8 +257,8 @@ if __name__ == '__main__':
                     plt.close()
 
                 # save model
-                if val_loss < best_loss:
-                    best_loss = val_loss
+                if val_f1 > best_f1:
+                    best_f1 = val_f1
                     with open(os.path.join(run_folder, 'model.pkl'), 'wb') as f:
                         pickle.dump(model, f)
                     logging.info('Model saved')
