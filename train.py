@@ -43,7 +43,7 @@ print(f'Small num classes: {small_num_classes}\n Num classes: {num_classes}')
 indexes = []
 for i in range(small_num_classes):
     indexes.append(np.where(reversed_groups_values == i)[0][0])
-indexes.append(small_num_classes)
+indexes.append(num_classes)
 
 data = None
 start_lr = 0.0004
@@ -229,7 +229,7 @@ if __name__ == '__main__':
                     small_output = reversed_groups_values[output.argmax(1).cpu()]
                     small_output = torch.from_numpy(small_output).to(device).float()
                 else:
-                    small_output = torch.zeros(len(indexes) - 1, output.shape[0]).to(device)
+                    small_output = torch.zeros(len(small_target) - 1, output.shape[0]).to(device)
                     for i in range(len(indexes) - 1):
                         start_idx = indexes[i]
                         end_idx = indexes[i + 1]
