@@ -10,9 +10,21 @@ from train import reversed_groups, CustomClassifier, CustomDataset
 from create_submission import get_res, MODEL_PATHS, submission_name, DATA_TRANSFORMS
 
 train_csv = "data/ukraine-ml-bootcamp-2023/train.csv"
+subcat_path = "/home/oleksandr/yoga/data/ukraine-ml-bootcamp-2023/subcat_no_bg"
+subcats = os.listdir(subcat_path)
+
 train_data = np.genfromtxt(train_csv, delimiter=',', skip_header=1, dtype=str)
-img_paths = [os.path.join('data/ukraine-ml-bootcamp-2023/images/train_images', i) for i in train_data[:, 0]]
+
+img_paths = []
+for i in subcats:
+    img_paths.extend([os.path.join(subcat_path, i, j) for j in os.listdir(os.path.join(subcat_path, i))])
+
+imgs_ids = [os.path.basename(i) for i in img_paths]
+indexes = [np.where(train_data[:, 0] == i)[0][0] for i in imgs_ids]
+
 ground_truth = train_data[:, 1]
+ground_truth = ground_truth[indexes]
+
 
 res = []
 for i, (model_path, data_transform) in enumerate(zip(MODEL_PATHS, DATA_TRANSFORMS)):
@@ -28,4 +40,5 @@ os.makedirs(error_path, exist_ok=True)
 wrong_preds = []
 for i, (pred, gt) in enumerate(zip(final_res, ground_truth)):
     if int(pred) != int(gt):
-        shutil.copy(img_paths[i], os.path.join(error_path, f'{i}_{gt}_{pred}.jpg'))
+        img_id = os.path.basename(img_paths[i])
+        shutil.copy(img_paths[i], os.path.join(error_path, f'{img_id}_{gt}_{pred}.jpg'))

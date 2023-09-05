@@ -40,10 +40,12 @@ def get_res(model_path, test_data: CustomDataset):
 
 MODEL_PATHS = [
     'train-08-26_14:43_new_59_classes',
-    'train-08-26_15:14_bigger_classifier'
+    'train-08-26_15:14_bigger_classifier',
+    'train-08-29_20:26_no_bg'
 ]
 
 DATA_TRANSFORMS = [
+    base_transform,
     base_transform,
     base_transform,
 ]
@@ -60,6 +62,9 @@ if __name__ == '__main__':
 
     print('Test size:', len(images))
     for i, (model_path, data_transform) in enumerate(zip(MODEL_PATHS, DATA_TRANSFORMS)):
+        if "no_bg" in model_path:
+            test_data_path = 'data/ukraine-ml-bootcamp-2023/images/test_images_no_bg'
+            images = [os.path.join(test_data_path, i) for i in os.listdir(test_data_path)]
         test_data = CustomDataset(images, targets=None, transform=data_transform)
         res.append(get_res(model_path, test_data))
         print(f'Predictions {i} done')

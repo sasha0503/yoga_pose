@@ -13,7 +13,7 @@ from torch import nn
 from torch.utils.data import DataLoader, Dataset, random_split
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torchvision.datasets import ImageFolder
-from torchvision.models import densenet201, DenseNet201_Weights
+from torchvision.models import densenet201, DenseNet201_Weights, efficientnet_b5, EfficientNet_B5_Weights
 from sklearn.metrics import f1_score
 from matplotlib import MatplotlibDeprecationWarning
 
@@ -25,7 +25,7 @@ warnings.filterwarnings('ignore', category=MatplotlibDeprecationWarning)
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 assert str(device) == 'cuda', 'CUDA is not available'
 
-data_path = "data/ukraine-ml-bootcamp-2023/subcat"
+data_path = "data/ukraine-ml-bootcamp-2023/subcat_no_bg"
 USE_SMALL_CLASSES = False
 SMALL_CLASS_MAX = False
 
@@ -201,7 +201,7 @@ if __name__ == '__main__':
                   f"classification layer: {model.classifier}\n" \
                   f"scheduler: patience {scheduler.patience} factor {scheduler.factor}\n" \
                   f"model: densenet-201\n" \
-                  f"NOTE: try AdamW\n"
+                  f"NOTE: try backgroung removal\n"
 
     log_filename = os.path.join(run_folder, 'log.txt')
     logging.basicConfig(filename=log_filename, level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
